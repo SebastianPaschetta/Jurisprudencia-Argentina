@@ -379,6 +379,18 @@
     border-radius:var(--radius);
   }
   .action-btn:hover{background:var(--azul); color:#fff;}
+  .action-btn.primary{
+    background:var(--oxblood);
+    border-color:var(--oxblood);
+    color:#fff;
+  }
+  .action-btn.primary:hover{background:var(--oxblood-2);}
+  .action-btn.secondary{
+    border-color:var(--linea);
+    color:var(--tinta-suave);
+    background:transparent;
+  }
+  .action-btn.secondary:hover{background:var(--papel); color:var(--tinta); border-color:var(--tinta-suave);}
   .action-btn.copy.copied{
     border-color:var(--verde-ok);
     color:var(--verde-ok);
@@ -545,7 +557,7 @@
     <h1>Buscador Federal<br>de Jurisprudencia</h1>
     <p class="lead">Ingrese palabras clave y seleccione qué jurisdicciones incluir para acceder, en un solo lugar, a los buscadores oficiales de fallos y sentencias de la Corte Suprema, el Poder Judicial de la Nación y los veintitrés poderes judiciales provinciales más CABA.</p>
     <div class="aclaracion">
-      <strong>Alcance de la herramienta:</strong> esta página no aloja, reproduce ni scrapea fallos. Organiza el acceso directo a las bases oficiales de cada jurisdicción y le permite copiar la misma palabra clave para repetir la búsqueda en cada una de ellas. La disponibilidad y el motor de búsqueda dependen de cada sitio oficial.
+      <strong>Alcance de la herramienta:</strong> esta página no aloja, reproduce ni scrapea fallos. Como los buscadores oficiales no publican una URL de búsqueda directa, cada resultado abre una búsqueda de Google restringida a ese sitio oficial (<span style="font-family:'IBM Plex Mono',monospace; font-size:12px;">site:dominio</span>) para llevarlo lo más cerca posible del contenido relacionado. El acceso al sitio oficial para buscar manualmente queda siempre disponible como opción secundaria.
     </div>
   </div>
 </header>
@@ -648,7 +660,7 @@
   <h2>Constancia de búsqueda de jurisprudencia</h2>
   <div class="c-meta" id="cMeta"></div>
   <table>
-    <thead><tr><th>Jurisdicción</th><th>Organismo</th><th>Fuente</th></tr></thead>
+    <thead><tr><th>Jurisdicción</th><th>Organismo</th><th>Enlace de resultados</th><th>Sitio oficial</th></tr></thead>
     <tbody id="cTableBody"></tbody>
   </table>
 </div>
@@ -770,6 +782,20 @@
     return d.innerHTML;
   }
 
+  function dominioDe(url){
+    try{
+      return new URL(url).hostname.replace(/^www\./, '');
+    }catch(err){
+      return url;
+    }
+  }
+
+  function googleSiteSearchUrl(url, kwText){
+    const dom = dominioDe(url);
+    const q = `site:${dom} ${kwText}`;
+    return `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+  }
+
   let lastGenerated = null; // {incluidas, kwText, fuero, fecha}
 
   document.getElementById('genBtn').addEventListener('click', () => {
@@ -802,9 +828,13 @@
       folio.className = 'folio';
       const fs = String(idx + 1).padStart(3, '0');
 
-      const enlacesHtml = j.enlaces.map(e =>
-        `<a class="action-btn" href="${e.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(e.label)} ↗</a>`
-      ).join('');
+      const enlacesHtml = j.enlaces.map(e => {
+        const gUrl = googleSiteSearchUrl(e.url, kwText);
+        return `
+          <a class="action-btn primary" href="${gUrl}" target="_blank" rel="noopener noreferrer">Ir a resultados relacionados (${escapeHtml(e.label)}) ↗</a>
+          <a class="action-btn secondary" href="${e.url}" target="_blank" rel="noopener noreferrer">Sitio oficial (manual) ↗</a>
+        `;
+      }).join('');
 
       folio.innerHTML = `
         <div class="folio-top">
@@ -848,7 +878,7 @@
   document.getElementById('openAllBtn').addEventListener('click', () => {
     if(!lastGenerated) return;
     lastGenerated.incluidas.forEach(j => {
-      j.enlaces.forEach(e => window.open(e.url, '_blank', 'noopener,noreferrer'));
+      j.enlaces.forEach(e => window.open(googleSiteSearchUrl(e.url, lastGenerated.kwText), '_blank', 'noopener,noreferrer'));
     });
   });
 
@@ -863,7 +893,7 @@
       `Jurisdicciones consultadas: ${lastGenerated.incluidas.length}`;
     const body = lastGenerated.incluidas.map(j =>
       j.enlaces.map(e =>
-        `<tr><td>${escapeHtml(j.nombre)}</td><td>${escapeHtml(j.organismo)}</td><td>${escapeHtml(e.url)}</td></tr>`
+        `<tr><td>${escapeHtml(j.nombre)}</td><td>${escapeHtml(j.organismo)}</td><td>${escapeHtml(googleSiteSearchUrl(e.url, lastGenerated.kwText))}</td><td>${escapeHtml(e.url)}</td></tr>`
       ).join('')
     ).join('');
     document.getElementById('cTableBody').innerHTML = body;
@@ -960,3 +990,4 @@
 
 </body>
 </html>
+
